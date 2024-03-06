@@ -4,10 +4,10 @@
 #define N 3  // Size of the square matrices
 
 // CUDA kernel to multiply two matrices
-__global__ void matrixMul(int *a, int *b, int *c, int n) {
+__global__ void matrixMul(float *a, float *b, float *c, int n) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int sum = 0;
+    float sum = 0.0f;
     if (row < n && col < n) {
         for (int i = 0; i < n; ++i) {
             sum += a[row * n + i] * b[i * n + col];
@@ -17,14 +17,14 @@ __global__ void matrixMul(int *a, int *b, int *c, int n) {
 }
 
 int main() {
-    int *a, *b, *c;
-    int *d_a, *d_b, *d_c;
-    int size = N * N * sizeof(int);
+    float *a, *b, *c;
+    float *d_a, *d_b, *d_c;
+    int size = N * N * sizeof(float);
 
     // Allocate memory for host matrices
-    a = (int *)malloc(size);
-    b = (int *)malloc(size);
-    c = (int *)malloc(size);
+    a = (float *)malloc(size);
+    b = (float *)malloc(size);
+    c = (float *)malloc(size);
 
     // Initialize host matrices
     for (int i = 0; i < N * N; ++i) {
