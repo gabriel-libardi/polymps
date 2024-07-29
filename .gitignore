@@ -1,0 +1,6 @@
+#Ignore all executables in directory bin/
+bin/*
+
+# Ignore object files, which have extension *.o or *.d
+*.o
+*.d
