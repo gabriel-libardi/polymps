@@ -15,11 +15,9 @@ SOURCE_DIR     := src
 INCLUDE_DIR    := include
 
 # CUDA-specific implementation paths and targets
-SOURCE_CUDA    := gpu
 TARGET_CUDA    := emps_cuda.cu
 
 # OpenMP-specific implementation paths and targets
-SOURCE_OMP     := src
 TARGET_OMP     := main.cpp
 
 # C compiler (GNU/INTEL) (g++) or (icpc)
@@ -35,9 +33,7 @@ CXXFLAGS :=  $(PERFORMANCE) -std=c++11 -MP -MMD -fopenmp -lm -D_GNU_SOURCE
 CPPFLAGS ?=  $(addprefix -I$(INCLUDE_DIR)/, $(IMPLEMENTATIONS)) 
 CPPFLAGS +=  -Ieigen -Ijson/single_include/nlohmann -Ilibigl/include
 
-# Got some linker flags ?
-# -L is a linker flag
-LDFLAGS := -L $(LIB_DIR)
+# Link OpenMP code to stdc++fs
 LDLIBS  := -lstdc++fs
 
 # CUDA compiler definitions
@@ -54,7 +50,7 @@ endef
 IMPLEMENTATIONS := $(call find_subdirs, $(SOURCE_DIR))
 
 # Directives that are not filenames to be built
-.PHONY: all debug $(IMPLEMENTATIONS) clean help tidy
+.PHONY: all debug $(IMPLEMENTATIONS) clean help
 
 ifneq ($(IMPLEMENTATIONS),$(call find_subdirs, $(INCLUDE_DIR)))
 	$(shell echo "\033[0;31mWarning\033[0m: include subtree does not match source code structure")
@@ -75,17 +71,17 @@ endef
 # Creates build directories if they do not exist
 define build_dirs
 	$(eval UPPER_NAME := $(call to_uppercase, $(1)))
-	$(eval OBJECT_$(UPPER_NAME)_DIR := $(OBJECT_DIR)/$(1))
-	$(eval INCLUDE_$(UPPER_NAME) := $(INCLUDE_DIR)/$(1))
-	$(eval SOURCE_$(UPPER_NAME) := $(SOURCE_DIR)/$(1))
+	OBJECT_$(UPPER_NAME)_DIR := $(OBJECT_DIR)/$(1)
+	INCLUDE_$(UPPER_NAME)    := $(INCLUDE_DIR)/$(1)
+	SOURCE_$(UPPER_NAME)     := $(SOURCE_DIR)/$(1)
 
-	$(eval dirs_$(1) := $(BINARY_DIR)/ $$(OBJECT_$(UPPER_NAME)_DIR)/)
-	$(eval source_$(1) := $$(wildcard $$(SOURCE_$(UPPER_NAME))/*.cpp))
-	$(eval target_objects_$(1) := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(TARGET_$(UPPER_NAME):.cpp=.o))))
-	$(eval lib_objects_$(1) := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(source_$(1):.cpp=.o))))
-	$(eval objects_$(1) := $$(target_objects_$(1)) $$(lib_objects_$(1)))
-	$(eval dependencies_$(1) := $$(objects_$(1):.o=.d))
-	$(eval targets_$(1) := $$(addprefix $$(BINARY_DIR)/, $$(notdir $$(target_objects_$(1):.o=))))
+	dirs_$(1)           := $(BINARY_DIR)/ $$(OBJECT_$(UPPER_NAME)_DIR)/
+	source_$(1)         := $$(wildcard $$(SOURCE_$(UPPER_NAME))/*.cpp)
+	target_objects_$(1) := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(TARGET_$(UPPER_NAME):.cpp=.o)))
+	lib_objects_$(1)    := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(source_$(1):.cpp=.o)))
+	objects_$(1)        := $$(target_objects_$(1)) $$(lib_objects_$(1))
+	dependencies_$(1)   := $$(objects_$(1):.o=.d)
+	targets_$(1)        := $$(addprefix $$(BINARY_DIR)/, $$(notdir $$(target_objects_$(1):.o=)))
 endef
 
 # Build all implementations
@@ -100,13 +96,12 @@ debug: $(IMPLEMENTATIONS)
 %/:
 	@$(MKDIR) $@
 
+# Extract source, object code and executable. This also defines useful macros.
+$(foreach impl, $(IMPLEMENTATIONS), $(eval $(call build_dirs,$(impl))))
+
 # Rule for each implementation
 .SECONDEXPANSION:
-$(foreach impl, $(IMPLEMENTATIONS), $(eval $(call build_dirs,$(impl))))
-$(info target_objects_omp: $(target_objects_omp))
-$(info lib_objects_omp: $(lib_objects_omp))
-$(info objects_omp: $(objects_omp))
-$(info dependencies_omp: $(dependencies_omp))
+$(IMPLEMENTATIONS): LDFLAGS ?= -L $(OBJECT_$(UPPER_NAME)_DIR)
 $(IMPLEMENTATIONS): $$(dirs_$$@) $$(targets_$$@)
 	@echo "Built $(call to_uppercase, $@) implementation successfully"
 
