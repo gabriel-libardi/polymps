@@ -15,10 +15,12 @@ SOURCE_DIR     := src
 INCLUDE_DIR    := include
 
 # CUDA-specific implementation paths and targets
-TARGET_CUDA    := emps_cuda.cu
+TARGET_GPU     := emps_cuda.cu
+EXTENSION_GPU  := cu
 
 # OpenMP-specific implementation paths and targets
 TARGET_OMP     := main.cpp
+EXTENSION_OMP  := cpp
 
 # C compiler (GNU/INTEL) (g++) or (icpc)
 CC          := g++
@@ -37,9 +39,10 @@ CPPFLAGS +=  -Ieigen -Ijson/single_include/nlohmann -Ilibigl/include
 LDLIBS  := -lstdc++fs
 
 # CUDA compiler definitions
-NVCC       := nvcc
-CUFLAGS    := -I/mnt/nfs/modules/apps/cuda-toolkit/9.0.176/samples/common/inc
-CULDFLAGS  := -lcudart
+NVCC         := nvcc
+CUDAFLAGS    := -I/mnt/nfs/modules/apps/cuda-toolkit/9.0.176/samples/common/inc
+CUXXFLAGS    := -std=c++11
+CULDLIBS     := -lcudart
 
 define find_subdirs
 $(shell find $(1) -maxdepth 1 -type d -exec basename {} \; | grep -v $(1))
@@ -76,9 +79,9 @@ define build_dirs
 	SOURCE_$(UPPER_NAME)     := $(SOURCE_DIR)/$(1)
 
 	dirs_$(1)           := $(BINARY_DIR)/ $$(OBJECT_$(UPPER_NAME)_DIR)/
-	source_$(1)         := $$(wildcard $$(SOURCE_$(UPPER_NAME))/*.cpp)
-	target_objects_$(1) := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(TARGET_$(UPPER_NAME):.cpp=.o)))
-	lib_objects_$(1)    := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(source_$(1):.cpp=.o)))
+	source_$(1)         := $$(wildcard $$(SOURCE_$(UPPER_NAME))/*.$$(EXTENSION_$(UPPER_NAME)))
+	target_objects_$(1) := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(TARGET_$(UPPER_NAME):.$$(EXTENSION_$(UPPER_NAME))=.o)))
+	lib_objects_$(1)    := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(source_$(1):.$$(EXTENSION_$(UPPER_NAME))=.o)))
 	objects_$(1)        := $$(target_objects_$(1)) $$(lib_objects_$(1))
 	dependencies_$(1)   := $$(objects_$(1):.o=.d)
 	targets_$(1)        := $$(addprefix $$(BINARY_DIR)/, $$(notdir $$(target_objects_$(1):.o=)))
@@ -110,6 +113,10 @@ $(IMPLEMENTATIONS): $$(dirs_$$@) $$(targets_$$@)
 $(BINARY_DIR)/%: $(OBJECT_OMP_DIR)/%.o $(lib_objects_omp)
 	$(LINK.cpp) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
+# Create CUDA binary
+$(BINARY_DIR)/%: $(OBJECT_GPU_DIR)/%.o $(lib_objects_gpu)
+	$(NVCC) $^ $(CUDAFLAGS) $(CULDLIBS) -o $@
+
 # Since your source and object files don't share the same prefix, you
 # need to tell make exactly what to do since its built-in rules don't
 # cover your specific case
@@ -118,6 +125,11 @@ $(OBJECT_OMP_DIR)/%.o: $(SOURCE_OMP)/%.cpp $$(wildcard $$(INCLUDE_OMP)/*.h)
 	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
 
 .SECONDARY: $(objects_omp)
+
+# Rules for compiling the CUDA implementation
+.SECONDEXPANSION:
+$(OBJECT_GPU_DIR)/%.o: $(SOURCE_GPU)/%.cu $$(wildcard $$(INCLUDE_GPU)/*.h)
+	$(NVCC) $(CUXXFLAGS) $(CUDAFLAGS) $< -c -o $@
 
 
 clean:
