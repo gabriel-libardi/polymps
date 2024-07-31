@@ -42,7 +42,7 @@ LDLIBS  := -lstdc++fs
 NVCC         := nvcc
 CUDAFLAGS    := -I/mnt/nfs/modules/apps/cuda-toolkit/9.0.176/samples/common/inc
 CUXXFLAGS    := -std=c++11
-CULDLIBS     := -lcudart
+CULDLIBS     :=
 
 # Directives that are not filenames to be built
 .PHONY: all debug $(IMPLEMENTATIONS) clean help check-structure
