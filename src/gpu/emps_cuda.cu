@@ -10,7 +10,7 @@
 #define __shared__
 #endif
 
-#define IN_FILE "../mk_particle/dambreak.prof"
+#define IN_FILE "../aux/dambreak.prof"
 #define PCL_DST 0.02
 #define MIN_X  (0.0 - PCL_DST*3)
 #define MIN_Y  (0.0 - PCL_DST*3)
