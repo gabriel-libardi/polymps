@@ -93,8 +93,8 @@ $(foreach impl, $(IMPLEMENTATIONS), $(eval $(call build_dirs,$(impl))))
 all: $(IMPLEMENTATIONS)
 
 # Compile with helpful warnings (-Wall -Wextra flags)
-debug: CXXFLAGS += $(WARNINGS) $(DEBUG)
-debug: clean
+debug: CXXFLAGS  += $(WARNINGS) $(DEBUG)
+debug: CUDAFLAGS += -g -G
 debug: $(IMPLEMENTATIONS)
 
 # Rule for creating directories
