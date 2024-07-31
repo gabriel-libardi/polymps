@@ -44,6 +44,9 @@ CUDAFLAGS    := -I/mnt/nfs/modules/apps/cuda-toolkit/9.0.176/samples/common/inc
 CUXXFLAGS    := -std=c++11
 CULDLIBS     := -lcudart
 
+# Directives that are not filenames to be built
+.PHONY: all debug $(IMPLEMENTATIONS) clean help check-structure
+
 define find_subdirs
 $(shell find $(1) -maxdepth 1 -type d -exec basename {} \; | grep -v $(1))
 endef
@@ -52,23 +55,19 @@ endef
 # An OpenMP and a CUDA cimplementation are available currently
 IMPLEMENTATIONS := $(call find_subdirs, $(SOURCE_DIR))
 
-# Directives that are not filenames to be built
-.PHONY: all debug $(IMPLEMENTATIONS) clean help
-
-ifneq ($(IMPLEMENTATIONS),$(call find_subdirs, $(INCLUDE_DIR)))
-	$(shell echo "\033[0;31mWarning\033[0m: include subtree does not match source code structure")
-	$(shell echo 'Check whether the subdirectories "$(IMPLEMENTATIONS)" match what's inside $(INCLUDE_DIR)/')
-endif
+# Define ANSI color codes
+ANSI_RED          := \x1b[31m
+ANSI_GREEN        := \x1b[32m
+ANSI_LIGHT_YELLOW := \x1b[33m
+ANSI_RESET        := \x1b[0m
 
 # Useful commands definitions
 MKDIR := mkdir -p
-MV    := mv -f
 RM    := rm -rf
-SED   := sed
-TEST  := test
+PRINT := echo -e
 
 define to_uppercase
-$(shell echo $(1) | tr '[:lower:]' '[:upper:]')
+$(shell $(PRINT) $(1) | tr '[:lower:]' '[:upper:]')
 endef
 
 # Creates build directories if they do not exist
@@ -87,6 +86,9 @@ define build_dirs
 	targets_$(1)        := $$(addprefix $$(BINARY_DIR)/, $$(notdir $$(target_objects_$(1):.o=)))
 endef
 
+# Extract source, object code and executables. This also defines useful macros.
+$(foreach impl, $(IMPLEMENTATIONS), $(eval $(call build_dirs,$(impl))))
+
 # Build all implementations
 all: $(IMPLEMENTATIONS)
 
@@ -99,14 +101,11 @@ debug: $(IMPLEMENTATIONS)
 %/:
 	@$(MKDIR) $@
 
-# Extract source, object code and executable. This also defines useful macros.
-$(foreach impl, $(IMPLEMENTATIONS), $(eval $(call build_dirs,$(impl))))
-
 # Rule for each implementation
 .SECONDEXPANSION:
 $(IMPLEMENTATIONS): LDFLAGS ?= -L $(OBJECT_$(UPPER_NAME)_DIR)
-$(IMPLEMENTATIONS): $$(dirs_$$@) $$(targets_$$@)
-	@echo "Built $(call to_uppercase, $@) implementation successfully"
+$(IMPLEMENTATIONS): $$(dirs_$$@) check-structure $$(targets_$$@)
+	@$(PRINT) "$(ANSI_GREEN)Built $(call to_uppercase, $@) implementation successfully$(ANSI_RESET)"
 
 # List the prerequisites for building your executable, and fill its
 # recipe to tell make what to do with these
@@ -126,25 +125,68 @@ $(OBJECT_OMP_DIR)/%.o: $(SOURCE_OMP)/%.cpp $$(wildcard $$(INCLUDE_OMP)/*.h)
 
 .SECONDARY: $(objects_omp)
 
-# Rules for compiling the CUDA implementation
+# Rules for compiling object code for CUDA implementation
 .SECONDEXPANSION:
 $(OBJECT_GPU_DIR)/%.o: $(SOURCE_GPU)/%.cu $$(wildcard $$(INCLUDE_GPU)/*.h)
 	$(NVCC) $(CUXXFLAGS) $(CUDAFLAGS) $< -c -o $@
 
-
 clean:
 	$(RM) $(OBJECT_DIR) $(BINARY_DIR)
-
 
 ifneq "$(MAKECMDGOALS)" "clean"
 	-include $(dependencies_omp)
 endif
 
+# Warn if the repository structure does not match implementation targets
+check-structure: INCLUDE_SUBTREE := $(call find_subdirs, $(INCLUDE_DIR))
+check-structure: SOURCE_SUBTREE  := $(call find_subdirs, $(SOURCE_DIR))
+check-structure:
+	@if [ "$(IMPLEMENTATIONS)" != "$(INCLUDE_SUBTREE)" ] || [ "$(IMPLEMENTATIONS)" != "$(SOURCE_SUBTREE)" ]; then \
+        $(PRINT) "$(ANSI_RED)Warning$(ANSI_RESET): repository tree does not match target implementations.";       \
+        $(PRINT) "";                                                                                              \
+        $(PRINT) "Expected directory structure:";                                                                 \
+        $(PRINT) "$(ANSI_LIGHT_YELLOW)  polymps/";                                                                \
+        $(PRINT) "    ├── $(SOURCE_DIR)/";                                                                        \
+        count=0;                                                                                                  \
+        for dir in $(IMPLEMENTATIONS); do                                                                         \
+            count=$$((count+1));                                                                                  \
+        done;                                                                                                     \
+        current=0;                                                                                                \
+        for dir in $(IMPLEMENTATIONS); do                                                                         \
+            current=$$((current+1));                                                                              \
+            if [ $$current -eq $$count ]; then                                                                    \
+                $(PRINT) "    │   └─ $$dir/";                                                                     \
+            else                                                                                                  \
+                $(PRINT) "    │   ├─ $$dir/";                                                                     \
+            fi;                                                                                                   \
+        done;                                                                                                     \
+        $(PRINT) "    │";                                                                                         \
+        $(PRINT) "    ├── $(INCLUDE_DIR)/";                                                                       \
+        current=0;                                                                                                \
+        for dir in $(IMPLEMENTATIONS); do                                                                         \
+            current=$$((current+1));                                                                              \
+            if [ $$current -eq $$count ]; then                                                                    \
+                $(PRINT) "    │   └─ $$dir/";                                                                     \
+            else                                                                                                  \
+                $(PRINT) "    │   ├─ $$dir/";                                                                     \
+            fi;                                                                                                   \
+        done;                                                                                                     \
+        $(PRINT) "    │";                                                                                         \
+        $(PRINT) "    └── ...$(ANSI_RESET)";                                                                      \
+        $(PRINT) "Ensure that directories for each implementation (omp, gpu, etc) exist in both $(SOURCE_DIR)/ and $(INCLUDE_DIR)/."; \
+    fi
 
 help:
-	@echo 'Build all source files.'
-	@echo
-	@echo 'Targets in this file are:'
-	@echo 'all     Compile and link all source files.'
-	@echo 'clean   Remove all intermediate files.'
-	@echo 'help    Display this information.'
+	@$(PRINT) 'Usage: make [options] [target] ...'
+	@$(PRINT)
+	@$(PRINT) 'Build targets for this project are:'
+	@$(PRINT) '  all     - Compile and link all source files.'
+	@$(PRINT) '  debug   - Build project with debugging options.'
+	@$(PRINT) '  omp     - Build OpenMP implementation.'
+	@$(PRINT) '  gpu     - Build CUDA implementation.'
+	@$(PRINT) '  clean   - Remove all intermediate files.'
+	@$(PRINT) '  help    - Display this information.'
+	@$(PRINT)
+	@$(PRINT) 'For more information on make options, refer to the Makefile documentation.'
+	@$(PRINT) 'This Makefile is designed exclusively for UNIX systems.'
+
