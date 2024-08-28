@@ -15,7 +15,7 @@ SOURCE_DIR     := src
 INCLUDE_DIR    := include
 
 # CUDA-specific implementation paths and targets
-TARGET_GPU     := emps_cuda.cu
+TARGET_GPU     := main.cu
 EXTENSION_GPU  := cu
 
 # OpenMP-specific implementation paths and targets
@@ -41,7 +41,8 @@ LDLIBS  := -lstdc++fs
 # CUDA compiler definitions
 NVCC         := nvcc
 CUDAFLAGS    := -I/mnt/nfs/modules/apps/cuda-toolkit/9.0.176/samples/common/inc
-CUXXFLAGS    := -std=c++11
+CUDAFLAGS    += $(addprefix -I$(INCLUDE_DIR)/, $(IMPLEMENTATIONS))
+CUXXFLAGS    := -std=c++11 
 CULDLIBS     :=
 
 # Directives that are not filenames to be built
