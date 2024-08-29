@@ -77,15 +77,15 @@ define build_dirs
 	$(eval OBJECT_$(UPPER_NAME)_DIR := $(OBJECT_DIR)/$(1))
 	$(eval INCLUDE_$(UPPER_NAME)    := $(INCLUDE_DIR)/$(1))
 	$(eval SOURCE_$(UPPER_NAME)     := $(SOURCE_DIR)/$(1))
-    $(eval BINARY_$(1)_DIR          := $(BINARY_DIR)/$(1))
+        $(eval BINARY_$(UPPER_NAME)_DIR          := $(BINARY_DIR)/$(1))
 
-	$(eval dirs_$(1)           := $(BINARY_DIR)/ $$(OBJECT_$(UPPER_NAME)_DIR)/ $$(BINARY_$(1)_DIR))
+	$(eval dirs_$(1)           := $(BINARY_DIR)/ $$(OBJECT_$(UPPER_NAME)_DIR)/ $$(BINARY_$(UPPER_NAME)_DIR)/)
 	$(eval source_$(1)         := $$(wildcard $$(SOURCE_$(UPPER_NAME))/*.$$(EXTENSION_$(UPPER_NAME))))
 	$(eval target_objects_$(1) := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(TARGET_$(UPPER_NAME):.$$(EXTENSION_$(UPPER_NAME))=.o))))
 	$(eval lib_objects_$(1)    := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(source_$(1):.$$(EXTENSION_$(UPPER_NAME))=.o))))
 	$(eval objects_$(1)        := $$(target_objects_$(1)) $$(lib_objects_$(1)))
 	$(eval dependencies_$(1)   := $$(objects_$(1):.o=.d))
-	$(eval targets_$(1)        := $$(addprefix $$(BINARY_$(1)_DIR)/, $$(notdir $$(target_objects_$(1):.o=))))
+	$(eval targets_$(1)        := $$(addprefix $$(BINARY_$(UPPER_NAME)_DIR)/, $$(notdir $$(target_objects_$(1):.o=))))
 endef
 
 # Extract source, object code and executables. This also defines useful macros.
@@ -111,11 +111,11 @@ $(IMPLEMENTATIONS): $$(dirs_$$@) check-structure $$(targets_$$@)
 
 # List the prerequisites for building your executable, and fill its
 # recipe to tell make what to do with these
-$(BINARY_DIR)/%: $(OBJECT_OMP_DIR)/%.o $(lib_objects_omp)
+$(BINARY_OMP_DIR)/%: $(OBJECT_OMP_DIR)/%.o $(lib_objects_omp)
 	$(LINK.cpp) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 # Create CUDA binary
-$(BINARY_DIR)/%: $(OBJECT_GPU_DIR)/%.o $(lib_objects_gpu)
+$(BINARY_GPU_DIR)/%: $(OBJECT_GPU_DIR)/%.o $(lib_objects_gpu)
 	$(NVCC) $^ $(CUDAFLAGS) $(CULDLIBS) -o $@
 
 # Since your source and object files don't share the same prefix, you
