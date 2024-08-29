@@ -47,6 +47,7 @@ CULDLIBS     :=
 
 # Directives that are not filenames to be built
 .PHONY: all debug $(IMPLEMENTATIONS) clean help check-structure
+$(info $$.PHONY is [$(.PHONY)])
 
 define find_subdirs
 $(shell find $(1) -maxdepth 1 -type d -exec basename {} \; | grep -v $(1))
@@ -55,6 +56,7 @@ endef
 # Implementations are different versions of PolyMPS made for different computational demands
 # An OpenMP and a CUDA cimplementation are available currently
 IMPLEMENTATIONS := $(call find_subdirs, $(SOURCE_DIR))
+$(info $$IMPLEMENTATIONS is [$(IMPLEMENTATIONS)])
 
 # Define ANSI color codes
 ANSI_RED          := \x1b[31m
@@ -74,17 +76,22 @@ endef
 # Creates build directories if they do not exist
 define build_dirs
 	$(eval UPPER_NAME := $(call to_uppercase, $(1)))
-	OBJECT_$(UPPER_NAME)_DIR := $(OBJECT_DIR)/$(1)
-	INCLUDE_$(UPPER_NAME)    := $(INCLUDE_DIR)/$(1)
-	SOURCE_$(UPPER_NAME)     := $(SOURCE_DIR)/$(1)
+	$(eval OBJECT_$(UPPER_NAME)_DIR := $(OBJECT_DIR)/$(1))
+	$(eval INCLUDE_$(UPPER_NAME)    := $(INCLUDE_DIR)/$(1))
+	$(eval SOURCE_$(UPPER_NAME)     := $(SOURCE_DIR)/$(1))
+    $(info $$OBJECT_$(UPPER_NAME)_DIR [$(OBJECT_$(UPPER_NAME)_DIR)])
+    $(info $$SOURCE_$(UPPER_NAME)   [$(SOURCE_$(UPPER_NAME))])
 
-	dirs_$(1)           := $(BINARY_DIR)/ $$(OBJECT_$(UPPER_NAME)_DIR)/
-	source_$(1)         := $$(wildcard $$(SOURCE_$(UPPER_NAME))/*.$$(EXTENSION_$(UPPER_NAME)))
-	target_objects_$(1) := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(TARGET_$(UPPER_NAME):.$$(EXTENSION_$(UPPER_NAME))=.o)))
-	lib_objects_$(1)    := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(source_$(1):.$$(EXTENSION_$(UPPER_NAME))=.o)))
-	objects_$(1)        := $$(target_objects_$(1)) $$(lib_objects_$(1))
-	dependencies_$(1)   := $$(objects_$(1):.o=.d)
-	targets_$(1)        := $$(addprefix $$(BINARY_DIR)/, $$(notdir $$(target_objects_$(1):.o=)))
+	$(eval dirs_$(1)           := $(BINARY_DIR)/ $$(OBJECT_$(UPPER_NAME)_DIR)/)
+	$(eval source_$(1)         := $$(wildcard $$(SOURCE_$(UPPER_NAME))/*.$$(EXTENSION_$(UPPER_NAME))))
+	$(eval target_objects_$(1) := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(TARGET_$(UPPER_NAME):.$$(EXTENSION_$(UPPER_NAME))=.o))))
+	$(eval lib_objects_$(1)    := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(source_$(1):.$$(EXTENSION_$(UPPER_NAME))=.o))))
+	$(eval objects_$(1)        := $$(target_objects_$(1)) $$(lib_objects_$(1)))
+	$(eval dependencies_$(1)   := $$(objects_$(1):.o=.d))
+	$(eval targets_$(1)        := $$(addprefix $$(BINARY_DIR)/, $$(notdir $$(target_objects_$(1):.o=))))
+
+    $(info $$target_objects_$(1) is [$(target_objects_$(1))])
+    $(info $$objects_$(1) is [$(objects_$(1))])
 endef
 
 # Extract source, object code and executables. This also defines useful macros.
