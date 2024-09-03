@@ -32,29 +32,62 @@ WARNINGS    := -Wall -Wextra
 # Got some preprocessor flags to pass ?
 # -I is a preprocessor flag, not a compiler flag
 CXXFLAGS :=  $(PERFORMANCE) -std=c++11 -MP -MMD -fopenmp -lm -D_GNU_SOURCE
-CPPFLAGS ?=  $(addprefix -I$(INCLUDE_DIR)/, $(IMPLEMENTATIONS)) 
-CPPFLAGS +=  -Ieigen -Ijson/single_include/nlohmann -Ilibigl/include
+CPPFLAGS ?=  -Ieigen -Ijson/single_include/nlohmann -Ilibigl/include
 
 # Link OpenMP code to stdc++fs
 LDLIBS  := -lstdc++fs
 
 # CUDA compiler definitions
 NVCC         := nvcc
-CUDAFLAGS    := -I/mnt/nfs/modules/apps/cuda-toolkit/9.0.176/samples/common/inc
-CUDAFLAGS    += $(addprefix -I$(INCLUDE_DIR)/, $(IMPLEMENTATIONS))
+CUDAFLAGS    ?= -I/mnt/nfs/modules/apps/cuda-toolkit/9.0.176/samples/common/inc
 CUXXFLAGS    := -std=c++11 
 CULDLIBS     :=
+CULDFLAGS    :=
+CUDADEBUG    := -g -G
+
+# Empty variable, equivalent to NULL in C
+EMPTY        :=
+
+# Maps Systematic names of compilation config variables to their usual names.
+CC_OMP            := COMPILE.cpp
+CC_GPU            := NVCC
+
+LK_OMP            := LINK.cpp
+LK_GPU            := NVCC
+
+CC_FLAGS_OMP      := EMPTY              # Pre-compilation flags for g++
+CC_FLAGS_GPU      := CUDAFLAGS          # Pre-compilation flags for nvcc
+
+CCXX_FLAGS_OMP    := OUTPUT_OPTION      # Compilation flags for g++
+CCXX_FLAGS_GPU    := CUXXFLAGS          # Compilation flags for nvcc
+
+LDFLAGS_OMP       := LOADLIBES          # Linker flags for OMP implementation
+LDFLAGS_GPU       := CULDFLAGS          # NVCC linker flags.
+
+LDLIBS_OMP        := LDLIBS
+LDLIBS_GPU        := CULDLIBS
+
+INCLUDE_PATHS_OMP := CPPFLAGS
+INCLUDE_PATHS_GPU := CUDAFLAGS
 
 # Directives that are not filenames to be built
 .PHONY: all debug $(IMPLEMENTATIONS) clean help check-structure
 
+# Define useful Macros and routines
+# This routine returns the subdirectories of a given PATH
 define find_subdirs
 $(shell find $(1) -maxdepth 1 -type d -exec basename {} \; | grep -v $(1))
 endef
 
-# Implementations are different versions of PolyMPS made for different computational demands
-# An OpenMP and a CUDA cimplementation are available currently
-IMPLEMENTATIONS := $(call find_subdirs, $(SOURCE_DIR))
+# This routine returns a given string in all caps.
+define to_uppercase
+$(shell $(PRINT) $(1) | tr '[:lower:]' '[:upper:]')
+endef
+
+# Get 
+define get_option
+$(shell basename $(1) | tr '[:lower:]' '[:upper:]')
+endef
 
 # Define ANSI color codes
 ANSI_RED          := \x1b[31m
@@ -67,36 +100,42 @@ MKDIR := mkdir -p
 RM    := rm -rf
 PRINT := echo -e
 
-define to_uppercase
-$(shell $(PRINT) $(1) | tr '[:lower:]' '[:upper:]')
-endef
+# Implementations are different versions of PolyMPS made for different computational demands
+# An OpenMP and a CUDA cimplementation are available currently
+IMPLEMENTATIONS := $(call find_subdirs, $(SOURCE_DIR))
+UPPER_IMPL      := $(call to_uppercase, $(IMPLEMENTATIONS))
 
 # Creates build directories if they do not exist
 define build_dirs
-	$(eval UPPER_NAME := $(call to_uppercase, $(1)))
-	$(eval OBJECT_$(UPPER_NAME)_DIR := $(OBJECT_DIR)/$(1))
-	$(eval INCLUDE_$(UPPER_NAME)    := $(INCLUDE_DIR)/$(1))
-	$(eval SOURCE_$(UPPER_NAME)     := $(SOURCE_DIR)/$(1))
-        $(eval BINARY_$(UPPER_NAME)_DIR          := $(BINARY_DIR)/$(1))
+	$(eval UPPER_NAME              := $(call to_uppercase,$(1)))
+    $(eval $(1)                    := $(UPPER_NAME))
 
-	$(eval dirs_$(1)           := $(BINARY_DIR)/ $$(OBJECT_$(UPPER_NAME)_DIR)/ $$(BINARY_$(UPPER_NAME)_DIR)/)
-	$(eval source_$(1)         := $$(wildcard $$(SOURCE_$(UPPER_NAME))/*.$$(EXTENSION_$(UPPER_NAME))))
-	$(eval target_objects_$(1) := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(TARGET_$(UPPER_NAME):.$$(EXTENSION_$(UPPER_NAME))=.o))))
-	$(eval lib_objects_$(1)    := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(source_$(1):.$$(EXTENSION_$(UPPER_NAME))=.o))))
-	$(eval objects_$(1)        := $$(target_objects_$(1)) $$(lib_objects_$(1)))
-	$(eval dependencies_$(1)   := $$(objects_$(1):.o=.d))
-	$(eval targets_$(1)        := $$(addprefix $$(BINARY_$(UPPER_NAME)_DIR)/, $$(notdir $$(target_objects_$(1):.o=))))
+	$(eval OBJECT_$(UPPER_NAME)_DIR       :=   $(OBJECT_DIR)/$(1))
+	$(eval INCLUDE_$(UPPER_NAME)          :=   $(INCLUDE_DIR)/$(1))
+	$(eval SOURCE_$(UPPER_NAME)           :=   $(SOURCE_DIR)/$(1))
+    $(eval BINARY_$(UPPER_NAME)_DIR       :=   $(BINARY_DIR)/$(1))
+    $(eval $(INCLUDE_PATHS_$(UPPER_NAME)) += -I$(INCLUDE_DIR)/$(1))
+
+	$(eval source_$(1)           := $$(wildcard $$(SOURCE_$(UPPER_NAME))/*.$$(EXTENSION_$(UPPER_NAME))))
+	$(eval target_objects_$(1)   := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(TARGET_$(UPPER_NAME):.$$(EXTENSION_$(UPPER_NAME))=.o))))
+	$(eval LIB_$(UPPER_NAME)     := $$(addprefix $$(OBJECT_$(UPPER_NAME)_DIR)/, $$(notdir $$(source_$(1):.$$(EXTENSION_$(UPPER_NAME))=.o))))
+	$(eval dependencies_$(1)     := $$(objects_$(1):.o=.d))
+	$(eval TARGETS_$(UPPER_NAME) := $$(addprefix $$(BINARY_$(UPPER_NAME)_DIR)/, $$(notdir $$(target_objects_$(1):.o=))))
 endef
 
 # Extract source, object code and executables. This also defines useful macros.
 $(foreach impl, $(IMPLEMENTATIONS), $(eval $(call build_dirs,$(impl))))
+
+# OpenMP configs
+.SECONDARY: $(OBJECTS_OMP)
+LDFLAGS     ?= -L $(OBJECT_OMP_DIR)
 
 # Build all implementations
 all: $(IMPLEMENTATIONS)
 
 # Compile with helpful warnings (-Wall -Wextra flags)
 debug: CXXFLAGS  += $(WARNINGS) $(DEBUG)
-debug: CUDAFLAGS += -g -G
+debug: CUDAFLAGS += $(CUDADEBUG)
 debug: $(IMPLEMENTATIONS)
 
 # Rule for creating directories
@@ -105,32 +144,16 @@ debug: $(IMPLEMENTATIONS)
 
 # Rule for each implementation
 .SECONDEXPANSION:
-$(IMPLEMENTATIONS): LDFLAGS ?= -L $(OBJECT_$(UPPER_NAME)_DIR)
-$(IMPLEMENTATIONS): $$(dirs_$$@) check-structure $$(targets_$$@)
-	@$(PRINT) "$(ANSI_GREEN)Built $(call to_uppercase, $@) implementation successfully$(ANSI_RESET)"
+$(IMPLEMENTATIONS): check-structure $$(TARGETS_$$($$@)) 
+	@$(PRINT) "$(ANSI_GREEN)Built $($@) implementation successfully$(ANSI_RESET)"
 
-# List the prerequisites for building your executable, and fill its
-# recipe to tell make what to do with these
-$(BINARY_OMP_DIR)/%: $(OBJECT_OMP_DIR)/%.o $(lib_objects_omp)
-	$(LINK.cpp) $^ $(LOADLIBES) $(LDLIBS) -o $@
+# Link objects into binary for each implementation
+$(BINARY_DIR)/%: $$(OBJECT_DIR)/%.o $$(LIB_$$($$(*D))) $$(@D)/
+	$($(LK_$($(*D)))) $(LIB_$($(*D))) $($(LDFLAGS_$($(*D)))) $($(LDLIBS_$($(*D)))) -o $@
 
-# Create CUDA binary
-$(BINARY_GPU_DIR)/%: $(OBJECT_GPU_DIR)/%.o $(lib_objects_gpu)
-	$(NVCC) $^ $(CUDAFLAGS) $(CULDLIBS) -o $@
-
-# Since your source and object files don't share the same prefix, you
-# need to tell make exactly what to do since its built-in rules don't
-# cover your specific case
-.SECONDEXPANSION:
-$(OBJECT_OMP_DIR)/%.o: $(SOURCE_OMP)/%.cpp $$(wildcard $$(INCLUDE_OMP)/*.h)
-	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
-
-.SECONDARY: $(objects_omp)
-
-# Rules for compiling object code for CUDA implementation
-.SECONDEXPANSION:
-$(OBJECT_GPU_DIR)/%.o: $(SOURCE_GPU)/%.cu $$(wildcard $$(INCLUDE_GPU)/*.h)
-	$(NVCC) $(CUXXFLAGS) $(CUDAFLAGS) $< -c -o $@
+# Compile object code for each implementation
+$(OBJECT_DIR)/%.o: $(SOURCE_DIR)/%.* $$(@D)/
+	$($(CC_$($(*D)))) $($(CC_FLAGS_$($(*D)))) $($(CCXX_FLAGS_$($(*D)))) $< -o $@
 
 clean:
 	$(RM) $(OBJECT_DIR) $(BINARY_DIR)
