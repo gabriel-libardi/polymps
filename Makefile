@@ -52,17 +52,20 @@ EMPTY        :=
 CC_OMP            := COMPILE.cpp
 CC_GPU            := NVCC
 
+# Compilation Macros for each implementation
 LK_OMP            := LINK.cpp
 LK_GPU            := NVCC
 
-CC_FLAGS_OMP      := EMPTY              # Pre-compilation flags for g++
-CC_FLAGS_GPU      := CUDAFLAGS          # Pre-compilation flags for nvcc
+# Pre-compilation flags for nvcc and g++
+CC_FLAGS_OMP      := EMPTY
+CC_FLAGS_GPU      := CUDAFLAGS
 
-CCXX_FLAGS_OMP    := OUTPUT_OPTION      # Compilation flags for g++
-CCXX_FLAGS_GPU    := CUXXFLAGS          # Compilation flags for nvcc
+CCXX_FLAGS_OMP    := EMPTY
+CCXX_FLAGS_GPU    := CUXXFLAGS
 
-LDFLAGS_OMP       := LOADLIBES          # Linker flags for OMP implementation
-LDFLAGS_GPU       := CULDFLAGS          # NVCC linker flags.
+# Linker flags macros for OMP and CUDA implementation
+LDFLAGS_OMP       := LOADLIBES
+LDFLAGS_GPU       := CULDFLAGS
 
 LDLIBS_OMP        := LDLIBS
 LDLIBS_GPU        := CULDLIBS
@@ -153,7 +156,7 @@ $(BINARY_DIR)/%: $$(OBJECT_DIR)/%.o $$(LIB_$$($$(*D))) $$(@D)/
 
 # Compile object code for each implementation
 $(OBJECT_DIR)/%.o: $(SOURCE_DIR)/%.* $$(@D)/
-	$($(CC_$($(*D)))) $($(CC_FLAGS_$($(*D)))) $($(CCXX_FLAGS_$($(*D)))) $< -o $@
+	$($(CC_$($(*D)))) $($(CC_FLAGS_$($(*D)))) $($(CCXX_FLAGS_$($(*D)))) $< -o $@ && echo $($(*D))
 
 clean:
 	$(RM) $(OBJECT_DIR) $(BINARY_DIR)
