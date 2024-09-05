@@ -12,13 +12,15 @@ extern int nP;
 extern FILE* fp;
 extern int iF;
 
+static constant char kInFile[] = "../aux/dambreak.prof";
+
 /**
  * @brief Reads the particle data from the input file.
  */
 void ReadData() {
-    fp = fopen(mps::kInFile, "r");
+    fp = fopen(kInFile, "r");
     if (fp == nullptr) {
-        fprintf(stderr, "Error opening input file: %s\n", mps::kInFile);
+        fprintf(stderr, "Error opening input file: %s\n", kInFile);
         exit(EXIT_FAILURE);
     }
 

@@ -1,6 +1,8 @@
 #ifndef MPS_PROJECT_DATA_IO_H_
 #define MPS_PROJECT_DATA_IO_H_
 
+#include <string>
+
 namespace mps {
 
 /**
