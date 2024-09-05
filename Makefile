@@ -156,7 +156,7 @@ $(BINARY_DIR)/%: $$(OBJECT_DIR)/%.o $$(LIB_$$($$(*D))) $$(@D)/
 
 # Compile object code for each implementation
 $(OBJECT_DIR)/%.o: $(SOURCE_DIR)/%.* $$(@D)/
-	$($(CC_$($(*D)))) $($(CC_FLAGS_$($(*D)))) $($(CCXX_FLAGS_$($(*D)))) $< -o $@ && echo $($(*D))
+	$($(CC_$($(*D)))) $($(CC_FLAGS_$($(*D)))) $($(CCXX_FLAGS_$($(*D)))) $< -o $@
 
 clean:
 	$(RM) $(OBJECT_DIR) $(BINARY_DIR)
