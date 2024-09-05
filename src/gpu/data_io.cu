@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-namespace mps {
+namespace IO {
 
 // Global variables for particle data
 extern double *Acc, *Pos, *Vel, *Prs, *pav;
@@ -12,7 +12,7 @@ extern int nP;
 extern FILE* fp;
 extern int iF;
 
-static constant char kInFile[] = "../aux/dambreak.prof";
+static const char kInFile[] = "../aux/dambreak.prof";
 
 /**
  * @brief Reads the particle data from the input file.

@@ -3,6 +3,8 @@
 
 namespace mps {
 
+const int kNumType = 2
+
 /**
  * @brief Holds and manages the parameters used in the MPS simulation.
  */

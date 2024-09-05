@@ -1,6 +1,8 @@
 #ifndef MPS_PROJECT_CONSTANTS_H_
 #define MPS_PROJECT_CONSTANTS_H_
 
+#define NUM_DIMENSIONS 3
+
 namespace mps {
 
 constexpr double kPclDst = 0.02;
